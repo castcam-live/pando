@@ -1,0 +1,10 @@
+github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
+github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
+github.com/gorilla/websocket v1.5.0 h1:PPwGk2jz7EePpoHN/+ClbZu8SPxiqlu12wZP/3sWmnc=
+github.com/gorilla/websocket v1.5.0/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/shovon/go-stoppable v1.0.1 h1:BLdhGxilIw35Bijzd18ali1BC2/lHdIv43vejx+2o0c=
+github.com/shovon/go-stoppable v1.0.1/go.mod h1:jl58nb6GgPXWahKS6VbSiZM7mxoU3xqMZFmlJe9Its0=
+github.com/shovon/gorillawswrapper v1.0.1 h1:8uj9Bo6Z4s097gO7Crv65Fv7U7gf5oJ55HrEXw9XiZY=
+github.com/shovon/gorillawswrapper v1.0.1/go.mod h1:CaFhcaRAcLbChkO+0KF4EiQ043R5UqaTutgiCbED8ik=
+github.com/sparkscience/wskeyid-go/v2 v2.0.0 h1:kXdWr7JqGwEQUfkBIjk0pWFURUFbmtsVFtUT1FVeSLE=
+github.com/sparkscience/wskeyid-go/v2 v2.0.0/go.mod h1:qX5wfvUJ2LVaskiAX7vYa5yqhEZTMtWmMGLXXOoBOug=
