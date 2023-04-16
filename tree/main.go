@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 
 	"tree/messages/servermessages"
 	"tree/treemanager"
 
+	wskeyauth "github.com/clubcabana/ws-key-auth/go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/shovon/gorillawswrapper"
-	"github.com/sparkscience/wskeyid-go/v2"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -23,7 +24,7 @@ var trees = treemanager.NewTreeManager[string, participant]()
 //
 // Perhaps move this to another file
 type participant struct {
-	conn gorillawswrapper.Wrapper
+	conn *websocket.Conn
 	meta json.RawMessage
 }
 
@@ -34,6 +35,8 @@ func (p *participant) MarshalJSON() ([]byte, error) {
 }
 
 func handleTree(w http.ResponseWriter, r *http.Request) {
+	// This is where we handle the act of adding a node to a tree
+
 	params := mux.Vars(r)
 
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -63,37 +66,58 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn := gorillawswrapper.NewWrapper(c)
-
 	{
-		err := wskeyid.HandleAuthConnection(r, conn)
+		ok, err := wskeyauth.Handshake(c)
 		if err != nil {
 			fmt.Fprint(os.Stderr, err.Error())
 			return
 		}
+		if !ok {
+			return
+		}
 	}
 
-	p := participant{conn, json.RawMessage([]byte("{}"))}
+	p := participant{c, json.RawMessage([]byte("{}"))}
 
 	trees.Upsert(treeId, clientId, p)
 	defer trees.DeleteNode(treeId, clientId)
 
-	mc := conn.MessagesChannel()
 	listener := trees.RegisterChangeListener(treeId)
 	defer trees.UnregisterChangeListener(treeId, listener)
 
-	for {
-		select {
-		case _, ok := <-mc:
-			if !ok {
+	var wg sync.WaitGroup
+	done := make(chan interface{})
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		defer func() { done <- true }()
+
+		for {
+			type typeData struct {
+				Type string          `json:"type"`
+				Data json.RawMessage `json:"data"`
+			}
+			var td typeData
+			err := c.ReadJSON(&td)
+			if err != nil {
+				// Maybe the connection has closed?
 				return
 			}
-		case <-listener:
-			// TODO: emit something to the client
 		}
-	}
+	}()
 
-	// The end
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-listener:
+		case <-done:
+			return
+		}
+	}()
+
+	wg.Wait()
 }
 
 func handleWatchTree(w http.ResponseWriter, r *http.Request) {
