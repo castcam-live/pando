@@ -226,7 +226,6 @@ func handleWatchTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeTree := func() error {
-
 		return c.WriteJSON(
 			map[string]interface{}{
 				"type": "TREE",
@@ -235,7 +234,6 @@ func handleWatchTree(w http.ResponseWriter, r *http.Request) {
 					AdjacencyList(),
 			},
 		)
-
 	}
 
 	writeTree()
