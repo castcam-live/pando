@@ -6,8 +6,8 @@ import (
 	"tree/graph/adjacencylist"
 	"tree/graph/graph"
 	"tree/graph/maybe"
-	"tree/graph/reactforcegraph"
 	"tree/graph/set"
+	"tree/graph/treegraph/nodesandedges"
 )
 
 func compareTree[K comparable, V comparable](t *testing.T, m map[K]V, node *Node[K, V]) {
@@ -481,7 +481,7 @@ func TestAdjacencyList(t *testing.T) {
 	actualMapping := (*graph.Node[string, byte])(tree).GetMap()
 
 	logForceGraph := func() {
-		j, err := json.Marshal(reactforcegraph.ReactForceGraphMarshaler[string, byte]((*graph.Node[string, byte])(tree).AdjacencyList(set.Set[string]{})))
+		j, err := json.Marshal(nodesandedges.NodesAndEdges[string, byte]((*graph.Node[string, byte])(tree).AdjacencyList(set.Set[string]{})))
 		if err != nil {
 			t.Error(err)
 		}
