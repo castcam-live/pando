@@ -138,7 +138,7 @@ func TestIterate(t *testing.T) {
 
 	m := map[string]int{}
 
-	for node := range (graph.Node[string, int])(tree).Traverse(set.Set[string]{}) {
+	for node := range (*graph.Node[string, int])(&tree).Traverse(set.Set[string]{}) {
 		m[node.Key] = node.Value
 	}
 
@@ -300,18 +300,13 @@ func TestFind(t *testing.T) {
 		"widgets": 6,
 	}
 
-	maybeNode, ok := graph.Node[string, int](tree).Find("widgets")
+	node, ok := graph.Node[string, int](tree).Find("widgets")
 	if !ok {
 		t.Error("Expected to find a node with key \"widgets\", but got nothing")
 	}
 
-	value, ok := maybeNode.Get()
-	if !ok {
-		t.Error("Expected to find a node with key \"widgets\", but got nothing")
-	}
-
-	if value != 6 {
-		t.Errorf("Expected node with value 6, but got %d", value)
+	if node.Value != 6 {
+		t.Errorf("Expected node with value 6, but got %d", node.Value)
 	}
 
 	compareTree(t, m, &tree)
@@ -502,13 +497,9 @@ func TestAdjacencyList(t *testing.T) {
 	for k := range expectedMapping {
 		if actualMapping[k] != expectedMapping[k] {
 			t.Logf("Expected %d for key %s, but got %d", expectedMapping[k], k, actualMapping[k])
-			maybeResult, ok := (*graph.Node[string, byte])(tree).Find(k)
-			if !ok {
-				t.Logf("Node with key %s not found", k)
-			}
-			found, ok := maybeResult.Get()
+			found, ok := (*graph.Node[string, byte])(tree).Find(k)
 			if ok {
-				t.Logf("%d", found)
+				t.Logf("%d", found.Value)
 			} else {
 				t.Logf("Node with key %s not found", k)
 			}

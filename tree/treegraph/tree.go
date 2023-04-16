@@ -39,7 +39,38 @@ func (t Tree[K, V]) Find(key K) (maybe.Maybe[V], bool) {
 	if !ok {
 		return maybe.Nothing[V](), false
 	}
-	return (*graph.Node[K, V])(n).Find(key)
+	node, ok := (*graph.Node[K, V])(n).Find(key)
+	if !ok {
+		return maybe.Nothing[V](), false
+	}
+
+	return maybe.Something(node.Value), true
+}
+
+type Pair[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
+func (t Tree[K, V]) GetNeighborsOfNode(key K) ([]Pair[K, V], bool) {
+	// Get root node
+	n, ok := t.maybeRoot.Get()
+	if !ok {
+		return nil, false
+	}
+
+	// Gets all nodes with the given key
+	node, ok := (*graph.Node[K, V])(n).Find(key)
+	if !ok {
+		return nil, false
+	}
+
+	pairs := []Pair[K, V]{}
+	for _, neighbor := range node.Neighbors {
+		pairs = append(pairs, Pair[K, V]{neighbor.Key, neighbor.Value})
+	}
+
+	return pairs, true
 }
 
 func (t Tree[K, V]) Has(key K) bool {

@@ -2,6 +2,7 @@ package treemanager
 
 import (
 	"sync"
+	"tree/treegraph"
 	"tree/treemanager/listeners"
 	"tree/treemanager/safetree"
 )
@@ -41,6 +42,19 @@ func (t *treeManager[K, V]) Upsert(treeId string, nodeId K, p V) {
 
 	changedNodes := tree.Upsert(nodeId, p)
 	t.listeners.EmitEvent(treeId, changedNodes)
+}
+
+func (t *treeManager[K, V]) GetNeighborOfNode(treeId string, nodeId K) ([]treegraph.Pair[K, V], bool) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+	tree := t.GetTree(treeId)
+
+	neighbor, ok := tree.GetNeighborOfNode(nodeId)
+	if !ok {
+		return nil, false
+	}
+
+	return neighbor, true
 }
 
 func (t *treeManager[K, V]) DeleteNode(treeId, nodeId string) {

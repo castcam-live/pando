@@ -1,9 +1,7 @@
 package graph
 
 import (
-	"sync"
 	"tree/adjacencylist"
-	"tree/maybe"
 	"tree/set"
 )
 
@@ -98,14 +96,14 @@ func (n Node[K, V]) AdjacencyList(visited set.Set[K]) adjacencylist.AdjacencyLis
 
 // Traverse iterates through all nodes in the graph, on a depth-first-search
 // basis, ensuring to avoid traversing the same node more than once
-func (n Node[K, V]) Traverse(visited set.Set[K]) <-chan Pair[K, V] {
+func (n *Node[K, V]) Traverse(visited set.Set[K]) <-chan *Node[K, V] {
 	visited.Add(n.Key)
 
-	c := make(chan Pair[K, V], 3)
+	c := make(chan *Node[K, V], 3)
 
 	go func() {
 		// Emit the current node to the listener
-		c <- Pair[K, V]{n.Key, n.Value}
+		c <- n
 
 		// Iterate through all the neighbors
 		for _, neighbor := range n.Neighbors {
@@ -135,7 +133,7 @@ func (n Node[K, V]) ToSlice() []Pair[K, V] {
 	result := []Pair[K, V]{}
 
 	for c := range n.Traverse(set.Set[K]{}) {
-		result = append(result, c)
+		result = append(result, Pair[K, V]{Key: c.Key, Value: c.Value})
 	}
 
 	return result
@@ -147,44 +145,14 @@ func (n Node[K, V]) Cardinality() int {
 }
 
 // Find gets the value associated with the supplied key
-func (n Node[K, V]) Find(key K) (maybe.Maybe[V], bool) {
-	for pair := range n.Traverse(set.Set[K]{}) {
-		if pair.Key == key {
-			return maybe.Something(pair.Value), true
+func (n Node[K, V]) Find(key K) (*Node[K, V], bool) {
+	for node := range n.Traverse(set.Set[K]{}) {
+		if node.Key == key {
+			return node, true
 		}
 	}
 
-	return maybe.Nothing[V](), false
-}
-
-// GetNodesFromSet gets all nodes, that have keys that is in the keys set
-func (n *Node[K, V]) GetNodesFromSet(keys set.Set[K]) []*Node[K, V] {
-	c := make(chan []*Node[K, V], 3)
-	var wg sync.WaitGroup
-
-	for _, node := range n.Neighbors {
-		wg.Add(1)
-		go func(node *Node[K, V]) {
-			defer wg.Done()
-			c <- node.GetNodesFromSet(keys)
-		}(node)
-	}
-
-	wg.Wait()
-
-	close(c)
-
-	result := []*Node[K, V]{}
-
-	for slice := range c {
-		result = append(result, slice...)
-	}
-
-	if keys.Has(n.Key) {
-		result = append(result, n)
-	}
-
-	return result
+	return nil, false
 }
 
 // Has determines whether a node with the supplied key exists in the graph

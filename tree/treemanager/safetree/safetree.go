@@ -36,6 +36,12 @@ func (t SafeTree[K, V]) Find(key K) (maybe.Maybe[V], bool) {
 	return t.tree.Find(key)
 }
 
+func (t SafeTree[K, V]) GetNeighborOfNode(key K) ([]treegraph.Pair[K, V], bool) {
+	t.mut.RLock()
+	defer t.mut.RUnlock()
+	return t.tree.GetNeighborsOfNode(key)
+}
+
 func (t SafeTree[K, V]) Has(key K) bool {
 	t.mut.RLock()
 	defer t.mut.RUnlock()

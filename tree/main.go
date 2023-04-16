@@ -13,7 +13,6 @@ import (
 	wskeyauth "github.com/clubcabana/ws-key-auth/go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/shovon/gorillawswrapper"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -44,6 +43,8 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
+
+	// TODO: handle pings and pings
 
 	treeId, ok := params["id"]
 	if !ok {
@@ -101,8 +102,15 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 			var td typeData
 			err := c.ReadJSON(&td)
 			if err != nil {
-				// Maybe the connection has closed?
+				// Just kill the connection
 				return
+			}
+
+			switch td.Type {
+			case "SET_META":
+				trees.Upsert(treeId, clientId, participant{c, td.Data})
+			case "GET_NEIGHBORS":
+				// trees.GetTree(treeId).
 			}
 		}
 	}()
@@ -112,6 +120,7 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 
 		select {
 		case <-listener:
+			// TODO: send the list of neighbours to client
 		case <-done:
 			return
 		}
@@ -132,44 +141,48 @@ func handleWatchTree(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
+	// TODO: handle pings and pongs
+
 	treeId, ok := params["id"]
 	if !ok {
 		// This should have technically not been possible at all. Thus closing the
 		// connection, while also notifying the client that something went wrong.
 		c.WriteJSON(
-			servermessages.
-				CreateServerError(
-					servermessages.ErrorResponse{Title: "An internal server error"},
-				),
+			map[string]interface{}{
+				"type": "SERVER_ERROR",
+				"data": map[string]interface{}{
+					"title": "An internal server error",
+				},
+			},
 		)
 		return
 	}
 
-	conn := gorillawswrapper.NewWrapper(c)
+	writeTree := func() error {
 
-	conn.WriteJSON(
-		servermessages.
-			CreateWholeTreeMessage(
-				trees.
+		return c.WriteJSON(
+			map[string]interface{}{
+				"type": "TREE",
+				"data": trees.
 					GetTree(treeId).
 					AdjacencyList(),
-			),
-	)
+			},
+		)
 
-	mc := conn.MessagesChannel()
+	}
+
+	writeTree()
+
 	listener := trees.RegisterChangeListener(treeId)
 	defer trees.UnregisterChangeListener(treeId, listener)
 
 	for {
-		select {
-		case _, ok := <-mc:
-			if !ok {
-				return
-			}
-		case <-listener:
-			// TODO: send the entire tree to the client that is watching the tree
+		<-listener
+		if writeTree() != nil {
+			return
 		}
 	}
+
 }
 
 func main() {
