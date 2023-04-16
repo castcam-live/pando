@@ -1,10 +1,10 @@
 package treegraph
 
 import (
-	"tree/adjacencylist"
-	"tree/graph"
-	"tree/maybe"
-	"tree/set"
+	"tree/graph/adjacencylist"
+	"tree/graph/graph"
+	"tree/graph/maybe"
+	"tree/graph/set"
 )
 
 type Tree[K comparable, V any] struct {

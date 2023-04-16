@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"tree/messages/servermessages"
-	"tree/treemanager"
+	"tree/graph/treemanager"
+	"tree/ws"
 
 	wskeyauth "github.com/clubcabana/ws-key-auth/go"
 	"github.com/gorilla/mux"
@@ -18,8 +18,8 @@ import (
 
 // TODO: this should really be its own thing.
 //
-//   The tree logic should its own package. Allowing us to easily swap out from
-//   one implementation to the other.
+//   The tree logic should be its own package. Allowing us to easily swap out
+//   from one implementation to the other.
 
 var upgrader = websocket.Upgrader{}
 
@@ -40,8 +40,8 @@ const (
 //
 // Perhaps move this to another file
 type participant struct {
-	conn *websocket.Conn
-	meta json.RawMessage
+	writer ws.Writer
+	meta   json.RawMessage
 }
 
 var _ json.Marshaler = &participant{}
@@ -97,9 +97,10 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		// connection, while also notifying the client that something went wrong.
 		write(func() error {
 			return c.WriteJSON(
-				servermessages.CreateServerError(
-					servermessages.ErrorResponse{Title: "An internal server error"},
-				),
+				map[string]any{
+					"type": "SERVER_ERROR",
+					"data": map[string]string{"title": "An internal server error"},
+				},
 			)
 		})
 		return
@@ -114,7 +115,9 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := participant{c, json.RawMessage([]byte("{}"))}
+	writer := ws.NewWriter(c)
+
+	p := participant{writer, json.RawMessage([]byte("{}"))}
 
 	trees.Upsert(treeID, clientID, p)
 	defer trees.DeleteNode(treeID, clientID)
@@ -140,7 +143,49 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 
 			switch td.Type {
 			case "SET_META":
-				trees.Upsert(treeID, clientID, participant{c, td.Data})
+				trees.Upsert(treeID, clientID, participant{writer, td.Data})
+			case "BROADCAST":
+				neighbors, ok := trees.GetNeighborOfNode(treeID, clientID)
+
+				if ok {
+					for _, n := range neighbors {
+						if n.Value.writer.WriteJSON(td.Data) != nil {
+							writer.WriteJSON(map[string]any{
+								"type": "SERVER_ERROR",
+								"data": map[string]any{
+									"title":   "An internal server error",
+									"message": fmt.Sprintf("In broadcast, error sending message to participant with client ID of %s", n.Key),
+									"meta": map[string]any{
+										"error": err.Error(),
+										"to":    n.Key,
+									},
+								},
+							})
+						}
+					}
+				}
+			case "SEND":
+				type message struct {
+					To   string          `json:"to"`
+					Data json.RawMessage `json:"data"`
+				}
+
+				var m message
+				err := json.Unmarshal(td.Data, &m)
+				if err != nil {
+					writer.WriteJSON(map[string]any{
+						"type": "SERVER_ERROR",
+						"data": map[string]any{
+							"title":   "An internal server error",
+							"message": fmt.Sprintf("Error parsing the message that was intended for participant %s", m.To),
+							"meta": map[string]any{
+								"error": err.Error(),
+								"to":    m.To,
+							},
+						},
+					})
+					continue
+				}
 			}
 		}
 	}()

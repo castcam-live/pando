@@ -2,10 +2,10 @@ package safetree
 
 import (
 	"sync"
-	"tree/adjacencylist"
-	"tree/maybe"
-	"tree/set"
-	"tree/treegraph"
+	"tree/graph/adjacencylist"
+	"tree/graph/maybe"
+	"tree/graph/set"
+	"tree/graph/treegraph"
 )
 
 type SafeTree[K comparable, V any] struct {

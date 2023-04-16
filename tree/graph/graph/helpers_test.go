@@ -2,7 +2,7 @@ package graph
 
 import (
 	"testing"
-	"tree/set"
+	"tree/graph/set"
 )
 
 type stringSet map[string]bool

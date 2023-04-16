@@ -3,11 +3,11 @@ package treegraph
 import (
 	"encoding/json"
 	"testing"
-	"tree/adjacencylist"
-	"tree/graph"
-	"tree/maybe"
-	"tree/reactforcegraph"
-	"tree/set"
+	"tree/graph/adjacencylist"
+	"tree/graph/graph"
+	"tree/graph/maybe"
+	"tree/graph/reactforcegraph"
+	"tree/graph/set"
 )
 
 func compareTree[K comparable, V comparable](t *testing.T, m map[K]V, node *Node[K, V]) {

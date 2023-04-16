@@ -1,8 +1,8 @@
 package graph
 
 import (
-	"tree/adjacencylist"
-	"tree/set"
+	"tree/graph/adjacencylist"
+	"tree/graph/set"
 )
 
 // Node represents a node in a graph.

@@ -2,9 +2,9 @@ package treemanager
 
 import (
 	"sync"
-	"tree/treegraph"
-	"tree/treemanager/listeners"
-	"tree/treemanager/safetree"
+	"tree/graph/treegraph"
+	"tree/graph/treemanager/listeners"
+	"tree/graph/treemanager/safetree"
 )
 
 type treeManager[K comparable, V any] struct {

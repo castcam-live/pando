@@ -1,9 +1,9 @@
 package treegraph
 
 import (
-	"tree/graph"
-	"tree/maybe"
-	"tree/set"
+	"tree/graph/graph"
+	"tree/graph/maybe"
+	"tree/graph/set"
 )
 
 // Node represents a node in a undirected tree.

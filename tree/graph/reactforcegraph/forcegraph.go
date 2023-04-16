@@ -2,7 +2,7 @@ package reactforcegraph
 
 import (
 	"encoding/json"
-	"tree/adjacencylist"
+	"tree/graph/adjacencylist"
 )
 
 type ReactForceGraphMarshaler[K comparable, V any] adjacencylist.AdjacencyList[K, V]

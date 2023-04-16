@@ -1,6 +1,6 @@
 package set
 
-import "tree/iterable"
+import "tree/graph/iterable"
 
 // Set is for representing a set of objects, irrespective insertion order.
 // additionally, duplicate insertion of the same key into a Set will result in

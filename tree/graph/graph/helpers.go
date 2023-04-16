@@ -1,6 +1,6 @@
 package graph
 
-import "tree/set"
+import "tree/graph/set"
 
 // ExcludeNodesByKeys given a slice of nodes, return a slice of nodes that does
 // not have nodes whose keys are in the provided key set

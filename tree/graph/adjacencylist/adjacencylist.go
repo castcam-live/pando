@@ -2,8 +2,8 @@ package adjacencylist
 
 import (
 	"fmt"
-	"tree/maybe"
-	"tree/set"
+	"tree/graph/maybe"
+	"tree/graph/set"
 )
 
 // AdjacencyListNode represents a pairing from source node to a list of target
