@@ -25,17 +25,6 @@ var upgrader = websocket.Upgrader{}
 
 var trees = treemanager.NewTreeManager[string, participant]()
 
-const (
-	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
-
-	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
-
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
-)
-
 // TODO: Gotta find a better name for this.
 //
 // Perhaps move this to another file
@@ -66,9 +55,9 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
-	c.SetReadDeadline(time.Now().Add(pongWait))
+	c.SetReadDeadline(time.Now().Add(ws.PongWait))
 	c.SetPongHandler(func(string) error {
-		c.SetReadDeadline(time.Now().Add(pongWait))
+		c.SetReadDeadline(time.Now().Add(ws.PongWait))
 		return nil
 	})
 
@@ -79,7 +68,7 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	write := func(handler func() error) {
-		err := c.SetWriteDeadline(time.Now().Add(writeWait))
+		err := c.SetWriteDeadline(time.Now().Add(ws.WriteWait))
 		if err != nil {
 			close()
 		}
@@ -222,13 +211,13 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTicker(pingPeriod)
+		ticker := time.NewTicker(ws.PingPeriod)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				c.SetWriteDeadline(time.Now().Add(writeWait))
+				c.SetWriteDeadline(time.Now().Add(ws.WriteWait))
 				if err := c.WriteMessage(websocket.PingMessage, nil); err != nil {
 					return
 				}

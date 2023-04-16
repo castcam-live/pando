@@ -8,13 +8,13 @@ import (
 
 const (
 	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
+	WriteWait = 10 * time.Second
 
 	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
+	PongWait = 60 * time.Second
 
 	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
+	PingPeriod = (PongWait * 9) / 10
 )
 
 type Writer struct {
@@ -26,7 +26,7 @@ func NewWriter(conn *websocket.Conn) Writer {
 }
 
 func (c Writer) writeDeadLine() error {
-	return c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	return c.conn.SetWriteDeadline(time.Now().Add(WriteWait))
 
 }
 
