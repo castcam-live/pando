@@ -7,7 +7,7 @@ import "tree/graph/iterable"
 // subsequent `Add` invocations to effectively be a no-op
 type Set[K comparable] map[K]bool
 
-var _ iterable.Iterable = Set[int]{}
+var _ iterable.Iterable[int] = Set[int]{}
 
 func New[K comparable](items ...K) Set[K] {
 	result := Set[K]{}
@@ -40,8 +40,8 @@ func (s Set[K]) Has(value K) bool {
 }
 
 // Iterate creates a channel purely for iteration purposes
-func (s Set[K]) Iterate() <-chan interface{} {
-	c := make(chan interface{})
+func (s Set[K]) Iterate() <-chan K {
+	c := make(chan K)
 	go func() {
 		for k := range s {
 			c <- k

@@ -5,10 +5,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"tree/graph"
-	"tree/reactforcegraph"
-	"tree/set"
-	insertiontree "tree/treegraph"
+	"tree/graph/graph"
+	"tree/graph/set"
+	insertiontree "tree/graph/treegraph"
+	"tree/graph/treegraph/nodesandedges"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 	tree.Upsert("world", 2, 3, set.Set[string]{})
 	tree.Upsert("sweet", 2, 3, set.Set[string]{})
 
-	fgraph := reactforcegraph.ReactForceGraphMarshaler[string, byte](graph.Node[string, byte](tree).AdjacencyList(set.Set[string]{}))
+	fgraph := nodesandedges.NodesAndEdges[string, byte](graph.Node[string, byte](tree).AdjacencyList(set.Set[string]{}))
 
 	b, err := json.Marshal(fgraph)
 
