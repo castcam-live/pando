@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"tree/messages/servermessages"
 	"tree/treemanager"
@@ -15,9 +16,25 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// TODO: this should really be its own thing.
+//
+//   The tree logic should its own package. Allowing us to easily swap out from
+//   one implementation to the other.
+
 var upgrader = websocket.Upgrader{}
 
 var trees = treemanager.NewTreeManager[string, participant]()
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+)
 
 // TODO: Gotta find a better name for this.
 //
@@ -33,6 +50,11 @@ func (p *participant) MarshalJSON() ([]byte, error) {
 	return p.meta, nil
 }
 
+type TypeData struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
 func handleTree(w http.ResponseWriter, r *http.Request) {
 	// This is where we handle the act of adding a node to a tree
 
@@ -44,62 +66,72 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
+	c.SetReadDeadline(time.Now().Add(pongWait))
+	c.SetPongHandler(func(string) error {
+		c.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	done := make(chan interface{})
+
+	close := func() {
+		done <- true
+	}
+
+	write := func(handler func() error) {
+		err := c.SetWriteDeadline(time.Now().Add(writeWait))
+		if err != nil {
+			close()
+		}
+		err = handler()
+		if err != nil {
+			close()
+		}
+	}
+
 	// TODO: handle pings and pings
 
-	treeId, ok := params["id"]
+	treeID, ok := params["id"]
 	if !ok {
 		// This should have technically not been possible at all. Thus closing the
 		// connection, while also notifying the client that something went wrong.
-		c.WriteJSON(servermessages.CreateServerError(servermessages.ErrorResponse{Title: "An internal server error"}))
+		write(func() error {
+			return c.WriteJSON(
+				servermessages.CreateServerError(
+					servermessages.ErrorResponse{Title: "An internal server error"},
+				),
+			)
+		})
 		return
 	}
 
-	clientId := r.URL.Query().Get("client_id")
-	if len(clientId) <= 0 {
-		// This is entirely possible. So if we're here, then notify the client that
-		// they made a bad request (althoug, to be fair, it *could* also be because
-		// the backend was coded poorly. This needs to be accounted for)
-		c.WriteJSON(
-			servermessages.CreateClientError(
-				servermessages.ErrorResponse{Title: "A client ID was not supplied"},
-			),
-		)
+	ok, clientID, err := wskeyauth.Handshake(c)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
 		return
 	}
-
-	{
-		ok, err := wskeyauth.Handshake(c)
-		if err != nil {
-			fmt.Fprint(os.Stderr, err.Error())
-			return
-		}
-		if !ok {
-			return
-		}
+	if !ok {
+		return
 	}
 
 	p := participant{c, json.RawMessage([]byte("{}"))}
 
-	trees.Upsert(treeId, clientId, p)
-	defer trees.DeleteNode(treeId, clientId)
+	trees.Upsert(treeID, clientID, p)
+	defer trees.DeleteNode(treeID, clientID)
 
-	listener := trees.RegisterChangeListener(treeId)
-	defer trees.UnregisterChangeListener(treeId, listener)
+	listener := trees.RegisterChangeListener(treeID)
+	defer trees.UnregisterChangeListener(treeID, listener)
 
 	var wg sync.WaitGroup
-	done := make(chan interface{})
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
 		defer func() { done <- true }()
 
 		for {
-			type typeData struct {
-				Type string          `json:"type"`
-				Data json.RawMessage `json:"data"`
-			}
-			var td typeData
+
+			var td TypeData
 			err := c.ReadJSON(&td)
 			if err != nil {
 				// Just kill the connection
@@ -108,9 +140,7 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 
 			switch td.Type {
 			case "SET_META":
-				trees.Upsert(treeId, clientId, participant{c, td.Data})
-			case "GET_NEIGHBORS":
-				// trees.GetTree(treeId).
+				trees.Upsert(treeID, clientID, participant{c, td.Data})
 			}
 		}
 	}()
@@ -118,11 +148,48 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer wg.Done()
 
-		select {
-		case <-listener:
-			// TODO: send the list of neighbours to client
-		case <-done:
-			return
+		type typeAny struct {
+			Type string `json:"type"`
+			Data any    `json:"data"`
+		}
+
+		for {
+			select {
+			case <-listener:
+				neighbors, ok := trees.GetNeighborOfNode(treeID, clientID)
+				if ok {
+					write(func() error {
+						return c.WriteJSON(
+							typeAny{
+								Type: "NEIGHBORS",
+								Data: neighbors,
+							},
+						)
+					})
+				}
+			case <-done:
+				return
+			}
+		}
+
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		ticker := time.NewTicker(pingPeriod)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				c.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := c.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
+			case <-done:
+				return
+			}
 		}
 	}()
 
