@@ -88,7 +88,12 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 			return c.WriteJSON(
 				map[string]any{
 					"type": "SERVER_ERROR",
-					"data": map[string]string{"title": "An internal server error"},
+					"data": map[string]any{
+						"type": "UNKNOWN_ERROR",
+						"data": map[string]string{
+							"title": "An internal server error",
+						},
+					},
 				},
 			)
 		})
@@ -142,11 +147,14 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 							writer.WriteJSON(map[string]any{
 								"type": "SERVER_ERROR",
 								"data": map[string]any{
-									"title":   "An internal server error",
-									"message": fmt.Sprintf("In broadcast, error sending message to participant with client ID of %s", n.Key),
-									"meta": map[string]any{
-										"error": err.Error(),
-										"to":    n.Key,
+									"type": "UNABLE_TO_SEND_MESSAGE",
+									"data": map[string]any{
+										"message": fmt.Sprintf("In broadcast, error sending message to participant with client ID of %s. Could be that the participant is no longer there", n.Key),
+										"meta": map[string]any{
+											"error":            err.Error(),
+											"to":               n.Key,
+											"original_message": td.Data,
+										},
 									},
 								},
 							})
@@ -163,17 +171,64 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 				err := json.Unmarshal(td.Data, &m)
 				if err != nil {
 					writer.WriteJSON(map[string]any{
-						"type": "SERVER_ERROR",
+						"type": "CLIENT_ERROR",
 						"data": map[string]any{
-							"title":   "An internal server error",
-							"message": fmt.Sprintf("Error parsing the message that was intended for participant %s", m.To),
-							"meta": map[string]any{
-								"error": err.Error(),
-								"to":    m.To,
+							"type": "MALFORMED_MESSAGE",
+							"data": map[string]any{
+								"title":   "Message intended for participant was malformed",
+								"message": fmt.Sprintf("Error parsing the message that was intended for participant %s", m.To),
+								"meta": map[string]any{
+									"error": err.Error(),
+									"to":    m.To,
+								},
 							},
 						},
 					})
 					continue
+				}
+
+				neighbors, ok := trees.GetNeighborOfNode(treeID, clientID)
+
+				if ok {
+					sent := false
+					for _, n := range neighbors {
+						if n.Key == m.To {
+							sent = true
+							if n.Value.writer.WriteJSON(m.Data) != nil {
+								writer.WriteJSON(map[string]any{
+									"type": "SERVER_ERROR",
+									"data": map[string]any{
+										"type": "UNABLE_TO_SEND_MESSAGE",
+										"data": map[string]any{
+											"message": fmt.Sprintf("Error sending message to participant with client ID of %s. Could be that the participant is no longer there", n.Key),
+											"meta": map[string]any{
+												"error":            err.Error(),
+												"to":               m.To,
+												"original_message": td.Data,
+											},
+										},
+									},
+								})
+							}
+							continue
+						}
+					}
+
+					if !sent {
+						writer.WriteJSON(map[string]any{
+							"type": "CLIENT_ERROR",
+							"data": map[string]any{
+								"type": "PARTICIPANT_NOT_FOUND",
+								"data": map[string]any{
+									"message": fmt.Sprintf("Participant with ID %s not found", m.To),
+									"meta": map[string]any{
+										"to":               m.To,
+										"original_message": td.Data,
+									},
+								},
+							},
+						})
+					}
 				}
 			}
 		}
@@ -288,4 +343,5 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/tree/{id}", handleTree).Methods("UPGRADE")
 	r.HandleFunc("/tree/{id}/watch", handleWatchTree).Methods("UPGRADE")
+	http.ListenAndServe(":8080", r)
 }
