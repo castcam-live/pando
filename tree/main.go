@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -343,5 +344,10 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/tree/{id}", handleTree).Methods("UPGRADE")
 	r.HandleFunc("/tree/{id}/watch", handleWatchTree).Methods("UPGRADE")
-	http.ListenAndServe(":8080", r)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", GetPort()))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Listening on port", listener.Addr().(*net.TCPAddr).Port)
+	panic(http.Serve(listener, r))
 }
