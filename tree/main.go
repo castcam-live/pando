@@ -22,7 +22,11 @@ import (
 //   The tree logic should be its own package. Allowing us to easily swap out
 //   from one implementation to the other.
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 var trees = treemanager.NewTreeManager[string, participant]()
 
@@ -128,7 +132,6 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		defer func() { done <- true }()
 
 		for {
-
 			var td TypeData
 			err := c.ReadJSON(&td)
 			if err != nil {
@@ -337,7 +340,6 @@ func handleWatchTree(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 }
 
 func main() {
