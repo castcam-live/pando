@@ -85,8 +85,13 @@ export class WsSession {
 			this.connect();
 		});
 
+		// TODO: handle other cases when the connection closes
+
 		this.ws.addEventListener("message", (event) => {
 			if (this.connectionState.get() === "CONNECTED") {
+				// Only messages received after a successful connection is what we care
+				// about
+
 				this._messageEvents.emit(event);
 			}
 		});
